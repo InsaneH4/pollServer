@@ -1,21 +1,14 @@
 //test on https://www.piesocket.com/websocket-tester with ws://localhost:8080
-const fs = require('fs');
 const ws = require('ws');
-const https = require('https');
-//hello
-// const server = https.createServer({
-//     cert: fs.readFileSync('cert.pem', 'utf8'),
-//     key: fs.readFileSync('key.pem', 'utf8'),
-// }).listen(8080);
-
-// const wss = new ws.WebSocketServer({server});
-
+const qs = require('querystring');
 const wss = new ws.WebSocketServer({port: 8080});
+
+let gameMetaData = [];
 
 wss.on('connection', function connection(ws) {
     ws.on('message', function message(rawData) {
         let route = rawData.toString().match(/[^?]*/)[0];
-        let data = rawData.toString().replace(route, '');
+        let data = qs.parse(rawData.toString().replace(route, '').substring(1));
         console.log(route);
         console.log(data);
         switch (route) {
@@ -28,22 +21,15 @@ wss.on('connection', function connection(ws) {
             case 'hostStartGame':
                 hostStartGame(data, ws);
                 break;
-            case 'hostPostQuestion':
-                hostPostQuestion(data, ws);
+            case 'hostSaveQuestion':
+                hostSaveQuestion(data, ws);
                 break;
-            case 'A':
-                userSubmitAnswer(route, ws);
+            case 'hostNextQuestion':
+                hostNextQuestion(data,ws);
                 break;
-            case 'B':
-                userSubmitAnswer(route, ws);
+            case 'userAnsweredQuestion':
+                userSubmitAnswer(data, ws);
                 break;
-            case 'C':
-                userSubmitAnswer(route, ws);
-                break;
-            case 'D':
-                userSubmitAnswer(route, ws);
-                break;
-
             case 'close':
                 ws.close();
                 break;
@@ -53,26 +39,88 @@ wss.on('connection', function connection(ws) {
                 break;
         }
     });
-
-    ws.send('hostInit?name=test&?data=fgfdgdg');
 });
 
 function initalizeHostGame(data, ws) {
-    ws.send('initalizing game');
+    let gameCode;
+    do {
+        gameCode = makeid();
+    } while (gameMetaData.length < 0 || gameMetaData.some(e => e.code === gameCode));
+    gameMetaData.push({
+        code: gameCode,
+        host: ws._socket.remoteAddress.toString(),
+        users: [],
+        questions: []
+    });
 }
 
 function initializeUser(data, ws) {
-    ws.send('initializing user');
+    if (e.code && !gameMetaData.some(e => e.code === data.code))
+        ws.send('Error in joining, no code found');
+    else if (!gameMetaData.some(e => e.users.includes(ws._socket.remoteAddress.toString()))) 
+        ws.send('Error in joining, already in one game');
+    let game = gameMetaData.findIndex(e => e.code === data.code);
+    gameMetaData[game] = gameMetaData[game].users.push(ws._socket.remoteAddress.toString());
 }
 
 function hostStartGame(data, ws) {
-    ws.send('starting game');
+    if (e.code && !gameMetaData.some(e => e.code === data.code))
+        ws.send('Error in saving question, no code found');
+    else if (!gameMetaData.some(e => e.host === ws._socket.remoteAddress.toString())) 
+        ws.send('Error in saving question, not host');
+    let game = gameMetaData.findIndex(e => e.code === data.code);
+    gameMetaData[game] = gameMetaData[game].currQuestion = 0;
+    ws.send(JSON.stringify(gameMetaData[game].questions[0]));
 }
 
-function hostPostQuestion(data, ws) {
-    ws.send('posting question');
+function hostNextQuestion(data, ws) {
+    if (e.code && !gameMetaData.some(e => e.code === data.code))
+        ws.send('Error in next question, no code found');
+    else if (!gameMetaData.some(e => e.host === ws._socket.remoteAddress.toString())) 
+        ws.send('Error in next question, not host');
+    let game = gameMetaData.findIndex(e => e.code === data.code);
+    //also, if at the end, end poll
+    //test this
+    ws.send(JSON.stringify(gameMetaData[game].questions[gameMetaData[game].currQuestion++]));
 }
+/*
+    Question JSON format:
+    {
+        question: "...",
+        options: ["1","2","3","4"],
+    }
+*/
+function hostSaveQuestion(data, ws) {
+    if (e.code && !gameMetaData.some(e => e.code === data.code))
+        ws.send('Error in saving question, no code found');
+    else if (!gameMetaData.some(e => e.host === ws._socket.remoteAddress.toString())) 
+        ws.send('Error in saving question, not host');
+    else if(data.question || data.options || data.options.length == 4)
+        ws.send('Error in saving question, question not formatted properly');
+    let game = gameMetaData.findIndex(e => e.code === data.code);
+    data.answers = [0,0,0,0];
+    gameMetaData[game] = gameMetaData[game].questions.push(data);
+}
+
+
 
 function userSubmitAnswer(data, ws) {
-    ws.send(`you submitted ${data}`);
+    if (e.code && !gameMetaData.some(e => e.code === data.code))
+        ws.send('Error in saving question, no code found');
+    else if (gameMetaData.find(e => e.code === data.code).users.include(ws._socket.remoteAddress.toString()))
+        ws.send('Error in submitting answer, not in the users list');
+    let game = gameMetaData.findIndex(e => e.code === data.code);
+    gameMetaData[game] = gameMetaData[game].questions[gameMetaData[game].currQuestion].answers[data.answer]++;
+}
+
+// show question results
+
+function makeid() {
+    var result           = '';
+    var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    var charactersLength = characters.length;
+    for ( var i = 0; i < 4; i++ ) {
+        result += characters.charAt(Math.floor(Math.random() * charactersLength));
+    }
+    return result;
 }
