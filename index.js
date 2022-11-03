@@ -31,9 +31,19 @@ wss.on('connection', function connection(ws) {
             case 'hostPostQuestion':
                 hostPostQuestion(data, ws);
                 break;
-            case 'userSubmitAnswer':
-                userSubmitAnswer(data, ws);
+            case 'A':
+                userSubmitAnswer(route, ws);
                 break;
+            case 'B':
+                userSubmitAnswer(route, ws);
+                break;
+            case 'C':
+                userSubmitAnswer(route, ws);
+                break;
+            case 'D':
+                userSubmitAnswer(route, ws);
+                break;
+
             case 'close':
                 ws.close();
                 break;
@@ -64,5 +74,5 @@ function hostPostQuestion(data, ws) {
 }
 
 function userSubmitAnswer(data, ws) {
-    ws.send('submitting answer');
+    ws.send(`you submitted ${data}`);
 }
