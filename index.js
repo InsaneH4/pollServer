@@ -60,7 +60,8 @@ function initializeUser(data, ws) {
     else if (!gameMetaData.some(e => e.users.includes(ws._socket.remoteAddress.toString()))) 
         ws.send('Error in joining, already in one game');
     let game = gameMetaData.findIndex(e => e.code === data.code);
-    gameMetaData[game] = gameMetaData[game].users.push(ws._socket.remoteAddress.toString());
+    let user = {id: ws._socket.remoteAddress.toString(), conn: ws}
+    gameMetaData[game] = gameMetaData[game].users.push(user);
 }
 
 function hostStartGame(data, ws) {
@@ -81,13 +82,17 @@ function hostNextQuestion(data, ws) {
     let game = gameMetaData.findIndex(e => e.code === data.code);
     //also, if at the end, end poll
     //test this
-    ws.send(JSON.stringify(gameMetaData[game].questions[gameMetaData[game].currQuestion++]));
+    gameMetaData[game].users.forEach(user => {
+        user.conn.send(JSON.stringify(gameMetaData[game].questions[gameMetaData[game].currQuestion]));
+    });
+    gameMetaData[game].currQuestion++;
 }
 /*
     Question JSON format:
     {
         question: "...",
         options: ["1","2","3","4"],
+        answers: [0,0,0,0]
     }
 */
 function hostSaveQuestion(data, ws) {
@@ -107,13 +112,23 @@ function hostSaveQuestion(data, ws) {
 function userSubmitAnswer(data, ws) {
     if (e.code && !gameMetaData.some(e => e.code === data.code))
         ws.send('Error in saving question, no code found');
-    else if (gameMetaData.find(e => e.code === data.code).users.include(ws._socket.remoteAddress.toString()))
+    else if (gameMetaData.find(e => e.code === data.code).users.some(e => e.id === ws._socket.remoteAddress.toString()))
         ws.send('Error in submitting answer, not in the users list');
     let game = gameMetaData.findIndex(e => e.code === data.code);
     gameMetaData[game] = gameMetaData[game].questions[gameMetaData[game].currQuestion].answers[data.answer]++;
 }
 
 // show question results
+function hostShowAnswers(data, ws) {
+    if (e.code && !gameMetaData.some(e => e.code === data.code))
+        ws.send('Error in saving question, no code found');
+    else if (!gameMetaData.some(e => e.host === ws._socket.remoteAddress.toString())) 
+        ws.send('Error in saving question, not host');
+    let game = gameMetaData.findIndex(e => e.code === data.code);
+    gameMetaData[game].users.forEach(user => {
+        user.conn.send(JSON.stringify(gameMetaData[game].questions[gameMetaData[game].currQuestion].answers));
+    });
+}
 
 function makeid() {
     var result           = '';
