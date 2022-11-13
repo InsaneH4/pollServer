@@ -27,7 +27,7 @@ wss.on('connection', function connection(ws) {
             case 'hostNextQuestion':
                 hostNextQuestion(data,ws);
                 break;
-            case 'userAnsweredQuestion':
+            case 'userSubmitAnswer':
                 userSubmitAnswer(data, ws);
                 break;
             case 'hostShowAnswers':
@@ -63,12 +63,12 @@ function initializeUser(data, ws) {
        ws.send(`error?error=codeNotFound`); 
        return;
     }
-    else if (gameMetaData.some(e => e.users.includes(ws._socket.remoteAddress.toString()))){
+    else if (gameMetaData.some(e => e.users.some(e => e.id === ws._socket.remoteAddress.toString()))){
         ws.send(`error?error=alreadyInGame`);
         return;
     }
     let game = gameMetaData.findIndex(e => e.code === data.code);
-    if(Object.hasOwn(gameMetaData[game],'currQuestion')){
+    if('currQuestion' in gameMetaData[game]){
         ws.send(`error?error=gameAlreadyStarted`);
         return;
     }
@@ -78,54 +78,6 @@ function initializeUser(data, ws) {
     gameMetaData[game].host.conn.send(`userUpdate?users=${gameMetaData[game].users.length}`)
 }
 
-function hostStartGame(data, ws) {
-    if (!data || !data.code || !gameMetaData.some(e => e.code === data.code)){
-        ws.send(`error?error=codeNotFound`); 
-        return;
-    }  
-    else if (!gameMetaData.some(e => e.host.id === ws._socket.remoteAddress.toString())){
-        ws.send(`error?error=notHost`); 
-        return;
-    } 
-        
-    let game = gameMetaData.findIndex(e => e.code === data.code);
-    gameMetaData[game].currQuestion = 0;
-    ws.send(`success?currQuestion=0`);
-    gameMetaData[game].users.forEach(user => {
-        user.conn.send(`newQuestion?question=${JSON.stringify(gameMetaData[game].questions[0])}`);
-    });
-}
-
-function hostNextQuestion(data, ws) {
-    if (!data || !data.code || !gameMetaData.some(e => e.code === data.code)){
-        ws.send(`error?error=codeNotFound`); 
-        return;
-    }
-        
-    else if (!gameMetaData.some(e => e.host === ws._socket.remoteAddress.toString())){
-        ws.send(`error?error=notHost`); 
-        return;
-    }
-        
-    let game = gameMetaData.findIndex(e => e.code === data.code);
-    if(gameMetaData[game].currQuestion < gameMetaData[game].questions.length){
-        gameMetaData[game].currQuestion++;
-        gameMetaData[game].users.forEach(user => {
-            user.conn.send(`newQuestion?question=${JSON.stringify(gameMetaData[game].questions[gameMetaData[game].currQuestion])}`);
-        });  
-        ws.send(`success?currQuestion=${gameMetaData[game].currQuestion}`)
-    }
-    else {
-        gameMetaData[game].users.forEach(user => {
-            user.conn.send('goodbye');
-            user.conn.close();
-        });
-        ws.send('goodbye');
-        ws.close();
-        delete gameMetaData[game];
-    }
-    
-}
 /*
     Question JSON format:
     {
@@ -134,17 +86,18 @@ function hostNextQuestion(data, ws) {
         answers: [0,0,0,0]
     }
 */
+
 function hostSaveQuestion(data, ws) {
     if (!data || !data.code || !gameMetaData.some(e => e.code === data.code)){
         ws.send(`error?error=codeNotFound`); 
         return;
     }
-    else if (!gameMetaData.some(e => e.host.id === ws._socket.remoteAddress.toString())){
+    else if (!(gameMetaData.find(e => e.code === data.code).host.id === ws._socket.remoteAddress.toString())){
         ws.send(`error?error=notHost`); 
         return;
     }
     else if(!data || !data.question || !data.options || data.options.length != 4){
-        ws.send('Error in saving question, question not formatted properly');
+        ws.send(`error?error=wrongFormat`);
         return;
     }
     let game = gameMetaData.findIndex(e => e.code === data.code);
@@ -157,17 +110,54 @@ function hostSaveQuestion(data, ws) {
     ws.send(`success?questions=${gameMetaData[game].questions.length}`)
 }
 
+function hostStartGame(data, ws) {
+    if (!data || !data.code || !gameMetaData.some(e => e.code === data.code)){
+        ws.send(`error?error=codeNotFound`); 
+        return;
+    }  
+    else if (!(gameMetaData.find(e => e.code === data.code).host.id === ws._socket.remoteAddress.toString())){
+        ws.send(`error?error=notHost`); 
+        return;
+    } 
+    else if ("currQuestion" in gameMetaData.find(e => e.code === data.code)){
+        ws.send(`error?error=gameAlreadyStarted`); 
+        return;
+    }
+        
+    let game = gameMetaData.findIndex(e => e.code === data.code);
+    gameMetaData[game].currQuestion = 0;
+    ws.send(`success?currQuestion=0`);
+    gameMetaData[game].users.forEach(user => {
+        user.conn.send(`newQuestion?question=${JSON.stringify(gameMetaData[game].questions[0])}`);
+        user.answeredQuestion = false;
+    });
+}
+
 function userSubmitAnswer(data, ws) {
     if (!data || !data.code || !gameMetaData.some(e => e.code === data.code)){
         ws.send(`error?error=codeNotFound`); 
         return;
     }
-    else if (gameMetaData.find(e => e.code === data.code).users.some(e => e.id === ws._socket.remoteAddress.toString())){
+    else if (!gameMetaData.find(e => e.code === data.code).users.some(e => e.id === ws._socket.remoteAddress.toString())){
         ws.send(`error?error=userNotFound`);
+        return;
+    }
+    else if(gameMetaData.find(e => e.code === data.code).users.find(e => e.id === ws._socket.remoteAddress.toString()).answeredQuestion){
+        ws.send(`error?error=questionAlreadyAnswered`);
+        return;
+    }
+    else if (typeof data.answer === "undefined"){
+        ws.send(`error?error=noAnswerSubmitted`);
+        return;
+    }
+    else if (data.answer > 4) {
+        ws.send(`error?error=answerOutOfRange`);
         return;
     }
     let game = gameMetaData.findIndex(e => e.code === data.code);
     gameMetaData[game].questions[gameMetaData[game].currQuestion].answers[data.answer]++;
+    gameMetaData[game].host.conn.send(`userAnswered?total=${gameMetaData[game].questions[gameMetaData[game].currQuestion].answers.reduce((a,b) => a+b,0)}`);
+    gameMetaData[game].users.find(e => e.id === ws._socket.remoteAddress.toString()).answeredQuestion = true;
     ws.send('success');
 }
 
@@ -177,13 +167,43 @@ function hostShowAnswers(data, ws) {
         ws.send(`error?error=codeNotFound`); 
         return;
     }
-    else if (!gameMetaData.some(e => e.host.id === ws._socket.remoteAddress.toString())) {
+    else if (!(gameMetaData.find(e => e.code === data.code).host.id === ws._socket.remoteAddress.toString())) {
         ws.send(`error?error=notHost`);
         return;
     }
         
     let game = gameMetaData.findIndex(e => e.code === data.code);
     ws.send(`success?results=${JSON.stringify(gameMetaData[game].questions[gameMetaData[game].currQuestion].answers)}`);
+}
+
+function hostNextQuestion(data, ws) {
+    if (!data || !data.code || !gameMetaData.some(e => e.code === data.code)){
+        ws.send(`error?error=codeNotFound`); 
+        return;
+    }
+    else if (!(gameMetaData.find(e => e.code === data.code).host.id === ws._socket.remoteAddress.toString())){
+        ws.send(`error?error=notHost`); 
+        return;
+    }
+        
+    let game = gameMetaData.findIndex(e => e.code === data.code);
+    if(gameMetaData[game].currQuestion + 1 < gameMetaData[game].questions.length){
+        gameMetaData[game].currQuestion++;
+        gameMetaData[game].users.forEach(user => {
+            user.conn.send(`newQuestion?question=${JSON.stringify(gameMetaData[game].questions[gameMetaData[game].currQuestion])}`);
+            user.answeredQuestion = false;
+        });  
+        ws.send(`success?currQuestion=${gameMetaData[game].currQuestion}`)
+    }
+    else {
+        gameMetaData[game].users.forEach(user => {
+            user.conn.send('goodbye');
+            user.conn.close();
+        });
+        ws.send('goodbye');
+        ws.close();
+        delete gameMetaData[game];
+    } 
 }
 
 function makeid() {
