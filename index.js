@@ -1,4 +1,4 @@
-//test on https://www.piesocket.com/websocket-tester with ws://localhost:8080
+//test on https://www.piesocket.com/websocket-tester with wss://robopoll-server.herokuapp.com/
 const ws = require('ws');
 const qs = require('querystring');
 const wss = new ws.WebSocketServer({port: process.env.PORT || 8080});
