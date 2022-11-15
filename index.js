@@ -33,6 +33,11 @@ wss.on('connection', function connection(ws) {
             case 'hostShowAnswers':
                 hostShowAnswers(data,ws);
                 break;
+            case 'leaveGame':
+                leaveGame(data,ws);
+            case 'endGame':
+                endGame(data,ws);
+                break;
             case 'close':
                 ws.close();
                 break;
@@ -204,6 +209,37 @@ function hostNextQuestion(data, ws) {
         ws.close();
         delete gameMetaData[game];
     } 
+}
+
+function leaveGame(data,ws) {
+    if (!data || !data.code || !gameMetaData.some(e => e.code === data.code)){
+        ws.send(`error?error=codeNotFound`); 
+        return;
+    }
+    else if (!gameMetaData.find(e => e.code === data.code).users.some(e => e.id === ws._socket.remoteAddress.toString())){
+        ws.send(`error?error=userNotFound`);
+        return;
+    }
+    ws.send('goodbye');
+    delete gameMetaData.find(e => e.code === data.code).users.some(e => e.id === ws._socket.remoteAddress.toString())
+}
+
+function endGame(data,ws) {
+    if (!data || !data.code || !gameMetaData.some(e => e.code === data.code)){
+        ws.send(`error?error=codeNotFound`); 
+        return;
+    }
+    else if (!(gameMetaData.find(e => e.code === data.code).host.id === ws._socket.remoteAddress.toString())){
+        ws.send(`error?error=notHost`); 
+        return;
+    }
+    gameMetaData[game].users.forEach(user => {
+        user.conn.send('goodbye');
+        user.conn.close();
+    });
+    ws.send('goodbye');
+    ws.close();
+    delete gameMetaData[game];
 }
 
 function makeid() {
