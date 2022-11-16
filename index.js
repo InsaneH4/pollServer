@@ -207,7 +207,7 @@ function hostNextQuestion(data, ws) {
         });
         ws.send('goodbye');
         ws.close();
-        delete gameMetaData[game];
+        gameMetaData.splice(gameMetaData.findIndex(e => e.code === data.code),1)
     } 
 }
 
