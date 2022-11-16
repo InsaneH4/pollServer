@@ -221,7 +221,8 @@ function leaveGame(data,ws) {
         return;
     }
     ws.send('goodbye');
-    delete gameMetaData.find(e => e.code === data.code).users.some(e => e.id === ws._socket.remoteAddress.toString())
+    ws.close();
+    gameMetaData.find(e => e.code === data.code).users.splice(gameMetaData.find(e => e.code === data.code).users.findIndex(e => e.id === ws._socket.remoteAddress.toString()),1)
 }
 
 function endGame(data,ws) {
@@ -240,7 +241,7 @@ function endGame(data,ws) {
     });
     ws.send('goodbye');
     ws.close();
-    delete gameMetaData[game];
+    gameMetaData.splice(gameMetaData.findIndex(e => e.code === data.code),1)
 }
 
 function makeid() {
