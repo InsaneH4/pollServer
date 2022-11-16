@@ -233,6 +233,7 @@ function endGame(data,ws) {
         ws.send(`endGame?status=error&error=notHost`); 
         return;
     }
+    let game = gameMetaData.findIndex(e => e.code === data.code);
     gameMetaData[game].users.forEach(user => {
         user.conn.send('goodbye');
         user.conn.close();
