@@ -9,6 +9,7 @@ wss.on('connection', function connection(ws) {
     ws.on('message', function message(rawData) {
         let route = rawData.toString().match(/[^?]*/)[0];
         let data = qs.parse(rawData.toString().replace(route, '').substring(1));
+        let inGame = false;
         console.log(route);
         console.log(data);
         switch (route) {
@@ -73,13 +74,14 @@ function initializeUser(data, ws) {
         return;
     }
     let game = gameMetaData.findIndex(e => e.code === data.code);
-    if('currQuestion' in gameMetaData[game]){
+    if('currQuestion' in gameMetaData[game] && inGame){
         ws.send(`initStatus?status=error&error=gameAlreadyStarted`);
         return;
     }
     let user = {id: ws._socket.remoteAddress.toString(), conn: ws};
     gameMetaData[game].users.push(user);
     ws.send(`initStatus?status=success`)
+    inGame = true;
     gameMetaData[game].host.conn.send(`userUpdate?users=${gameMetaData[game].users.length}`)
 }
 
@@ -221,6 +223,7 @@ function leaveGame(data,ws) {
         return;
     }
     ws.send('goodbye');
+    inGame = false;
     ws.close();
     gameMetaData.find(e => e.code === data.code).users.splice(gameMetaData.find(e => e.code === data.code).users.findIndex(e => e.id === ws._socket.remoteAddress.toString()),1)
 }
