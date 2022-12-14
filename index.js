@@ -155,6 +155,9 @@ function hostStartGame(data, ws) {
 
   let game = gameMetaData.findIndex((e) => e.code === data.code)
   gameMetaData[game].currQuestion = 0
+  wss.clients.forEach((client) => {
+    client.send(`gameStart?code=${gameMetaData[game].code}`);
+  });
   ws.send(`startStatus?status=success&currQuestion=0`)
   gameMetaData[game].users.forEach((user) => {
     user.conn.send(
