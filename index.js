@@ -4,12 +4,12 @@ const qs = require('querystring');
 const wss = new ws.WebSocketServer({port: process.env.PORT || 8080});
 
 let gameMetaData = [];
+let inGame = false;
 
 wss.on('connection', function connection(ws) {
     ws.on('message', function message(rawData) {
         let route = rawData.toString().match(/[^?]*/)[0];
         let data = qs.parse(rawData.toString().replace(route, '').substring(1));
-        let inGame = false;
         console.log(route);
         console.log(data);
         switch (route) {
