@@ -69,12 +69,12 @@ function initializeUser(data, ws) {
        ws.send(`initStatus?status=error&error=codeNotFound`); 
        return;
     }
-    else if (gameMetaData.some(e => e.users.some(e => e.id === ws._socket.remoteAddress.toString()))){
+    else if (gameMetaData.some(e => e.users.some(e => e.id === ws._socket.remoteAddress.toString())) && inGame){
         ws.send(`initStatus?status=error&error=alreadyInGame`);
         return;
     }
     let game = gameMetaData.findIndex(e => e.code === data.code);
-    if('currQuestion' in gameMetaData[game] && inGame){
+    if('currQuestion' in gameMetaData[game]){
         ws.send(`initStatus?status=error&error=gameAlreadyStarted`);
         return;
     }
@@ -214,6 +214,7 @@ function hostNextQuestion(data, ws) {
 }
 
 function leaveGame(data,ws) {
+    inGame = false;
     if (!data || !data.code || !gameMetaData.some(e => e.code === data.code)){
         ws.send(`leaveGame?status=error&error=codeNotFound`); 
         return;
@@ -223,7 +224,6 @@ function leaveGame(data,ws) {
         return;
     }
     ws.send('goodbye');
-    inGame = false;
     ws.close();
     gameMetaData.find(e => e.code === data.code).users.splice(gameMetaData.find(e => e.code === data.code).users.findIndex(e => e.id === ws._socket.remoteAddress.toString()),1)
 }
