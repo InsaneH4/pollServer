@@ -268,7 +268,7 @@ function hostNextQuestion(data, ws) {
       user.conn.close()
     })
     ws.send('goodbye')
-    //ws.close()
+    ws.close()
     gameMetaData.splice(
       gameMetaData.findIndex((e) => e.code === data.code),
       1,
@@ -290,7 +290,7 @@ function leaveGame(data, ws) {
     return
   }
   ws.send('goodbye')
-  //ws.close()
+  ws.close()
   gameMetaData
     .find((e) => e.code === data.code)
     .users.splice(
@@ -320,7 +320,7 @@ function endGame(data, ws) {
     user.conn.close()
   })
   ws.send('goodbye')
-  //ws.close()
+  ws.close()
   gameMetaData.splice(
     gameMetaData.findIndex((e) => e.code === data.code),
     1,
