@@ -39,6 +39,9 @@ wss.on('connection', function connection(ws) {
       case 'endGame':
         endGame(data, ws)
         break
+      case 'ping':
+        ws.send('pong, you are still connected')
+        break
       case 'close':
         ws.close()
         break
@@ -156,8 +159,8 @@ function hostStartGame(data, ws) {
   let game = gameMetaData.findIndex((e) => e.code === data.code)
   gameMetaData[game].currQuestion = 0
   wss.clients.forEach((client) => {
-    client.send(`gameStart?code=${gameMetaData[game].code}`);
-  });
+    client.send(`gameStart?code=${gameMetaData[game].code}`)
+  })
   ws.send(`startStatus?status=success&currQuestion=0`)
   gameMetaData[game].users.forEach((user) => {
     user.conn.send(
