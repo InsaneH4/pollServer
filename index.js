@@ -40,7 +40,7 @@ wss.on('connection', function connection(ws) {
         endGame(data, ws)
         break
       case 'ping':
-        ws.send('pong, you are still connected')
+        console.log('user still connected')
         break
       case 'close':
         ws.close()
