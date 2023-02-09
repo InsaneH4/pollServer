@@ -331,10 +331,10 @@ function endGame(data, ws) {
 }
 
 function makeid() {
-  var result = ''
-  var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-  var charactersLength = characters.length
-  for (var i = 0; i < 4; i++) {
+  let result = ''
+  let characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+  let charactersLength = characters.length
+  for (let i = 0; i < 4; i++) {
     result += characters.charAt(Math.floor(Math.random() * charactersLength))
   }
   return result
